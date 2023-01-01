@@ -96,7 +96,6 @@ Finally, running L<advcal> is easy, too.  Here is its usage:
     -o --output-dir   output directory
     --today           the day we treat as "today"; default to today
 
-    -t --tracker      include Google Analytics; -t TRACKER-ID
     -y --year-links   place year links at the bottom of the page
     -p --https   website is https
 
@@ -134,8 +133,6 @@ The directory for templates, stylesheets, and other static content.
 The directory into which output files will be written.
 = today
 The date to treat as "today" when deciding how much of the calendar to publish.
-= tracker_id
-A Google Analytics tracker id.  If given, each page will include analytics.
 
 =cut
 
@@ -192,8 +189,6 @@ has end_date => (
 
 has today      => (is => 'rw');
 
-has tracker_id => (is => 'ro');
-
 class_type('Color::Palette', { class => 'Color::Palette' });
 
 has color_palette => (
@@ -228,7 +223,6 @@ sub _masonize {
   $interp->set_global('$calendar', $self);
 
   $interp->exec($comp,
-    tracker_id => $self->tracker_id,
     year_links => $self->year_links,
     %$args
   );
