@@ -181,6 +181,11 @@ a:not(.article) {
   background-color: <% $color{calendarMissingDayBG} %>;
 }
 
+img { 
+  max-width: 100%; 
+  height: auto; 
+}
+
 a img {
   border: 0;
 }
