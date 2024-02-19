@@ -249,6 +249,7 @@ pre {
   white-space: pre;
   border-collapse: collapse;
   width: 100%;
+  overflow: auto;
 }
 
 .code-listing td {
