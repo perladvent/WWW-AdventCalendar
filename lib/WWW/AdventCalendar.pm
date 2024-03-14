@@ -495,6 +495,7 @@ sub read_articles {
   my %article;
 
   for my $file (grep { ! $_->is_dir } $self->article_dir->children) {
+    next unless $file =~ m/.*\.pod$/;
     my ($name, $path) = fileparse($file);
     $name =~ s{\..+\z}{}; # remove extension
 
