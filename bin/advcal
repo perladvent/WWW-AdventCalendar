@@ -14,6 +14,7 @@ use Getopt::Long::Descriptive 0.083;
   advcal [-aot] [long options...]
     -c --config       the ini file to read for configuration
     -a --article-dir  the root of articles
+    -i --incoming-dir the root of incoming articles
     --share-dir       the root of shared files
     -o --output-dir   output directory
     --today           the day we treat as "today"; default to today
@@ -29,6 +30,7 @@ my ($opt, $usage) = describe_options(
   '%c %o',
   [ 'config|c=s',      'the ini file to read for configuration'            ],
   [ 'article-dir|a=s', 'root of articles',     { default => './articles' } ],
+  [ 'incoming-dir|i=s','root of incoming',     { default => undef        } ],
   [ 'share-dir=s',     'root of shared files', { default => './share'    } ],
   [ 'output-dir|o=s',  'output directory',     { default => './out'      } ],
   [ 'today=s',         'the day we treat as "today"; default to today'     ],
