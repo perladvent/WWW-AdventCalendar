@@ -143,6 +143,7 @@ has tagline => (is => 'ro', predicate => 'has_tagline');
 has categories => (is => 'ro', default => sub { [ qw() ] });
 
 has article_dir => (is => 'rw', required => 1);
+has incoming_dir => (is => 'rw', required => 0);
 has share_dir   => (is => 'rw', required => 1);
 has output_dir  => (is => 'rw', required => 1);
 has year_links  => (is => 'rw', required => 1, default => 0);
@@ -265,7 +266,7 @@ sub BUILD {
   confess "range from start_date to end_date must not cross a month boundary"
     if $self->start_date->month != $self->end_date->month;
 
-  for (map { "$_\_dir" } qw(article output share)) {
+  for (map { "$_\_dir" } qw(article output share incoming)) {
     $self->$_( Path::Class::Dir->new($self->$_) );
   }
 }
@@ -413,17 +414,24 @@ sub build {
   }
 
   my $article = $self->read_articles;
+  my @available = ();
 
   {
     my $d = $month{1};
     while (
       $d->ymd le (sort { $a cmp $b } ($self->end_date->ymd, $self->today->ymd))[0]
     ) {
-      warn "no article written for " . $d->ymd . "!\n"
-        if $d >= $self->start_date && ! $article->{ $d->ymd };
+      if ( $d >= $self->start_date && ! $article->{ $d->ymd } ) {
+	  push @available, $d->ymd;
+      }
 
       $d = $d + DateTime::Duration->new(days => 1 );
     }
+  }
+
+  if ( defined $self->incoming_dir ) {
+    my $incoming = $self->read_incoming(@available);;
+    $article = {%$article, %$incoming};
   }
 
   $self->output_dir->file('index.html')->openw->print(
@@ -503,6 +511,49 @@ sub read_articles {
     my $content = do { local $/; <$fh> };
     my $document = Email::Simple->new($content);
     my $isodate  = $name;
+
+    die "no title set in $file\n" unless $document->header('title');
+
+    my $article  = WWW::AdventCalendar::Article->new(
+      body   => scalar $document->body,
+      date   => scalar _parse_isodate($isodate),
+      title  => scalar $document->header('title'),
+      topic  => scalar $document->header('topic'),
+      author => scalar $document->header('author')
+             // scalar $self->default_author,
+      calendar => $self,
+    );
+
+    next unless $article->date < $self->today;
+
+    die "already have an article for " . $article->date->ymd
+      if $article{ $article->date->ymd };
+
+    $article{ $article->date->ymd } = $article;
+  }
+
+  return \%article;
+}
+
+sub read_incoming {
+  my ($self, @seats) = @_;
+
+  my %article;
+
+  for my $file (grep { ! $_->is_dir } $self->incoming_dir->children) {
+    next unless $file =~ m/.*\.pod$/;
+    my ($name, $path) = fileparse($file);
+    $name =~ s{\..+\z}{}; # remove extension
+
+    open my $fh, '<:encoding(utf-8)', $file;
+    my $content = do { local $/; <$fh> };
+    my $document = Email::Simple->new($content);
+
+    my $seat = shift @seats;
+    if ( !defined $seat ) {
+	    die "No date available for $name\n";
+    }
+    my $isodate = $seat;
 
     die "no title set in $file\n" unless $document->header('title');
 
