@@ -7,6 +7,9 @@
     <link rel="alternate" title="<% $calendar->title |h %> XML feed" href="atom.xml" type="application/atom+xml" />
     <link rel="shortcut icon" href="favicon.ico" />
     <link rel="stylesheet" href="style.css" type="text/css" />
+    <style>
+      div#perl-ad { background-color: white; }
+    </style>
     <script src="https://perl-ads.perlhacks.com/perl-ads.js"></script>
 % for ($calendar->css_hrefs) {
     <link rel="stylesheet" href="<% $_ |h %>" type="text/css" />
