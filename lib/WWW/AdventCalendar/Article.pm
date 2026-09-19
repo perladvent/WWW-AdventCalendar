@@ -12,6 +12,7 @@ the production of an HTML version of the article's body.
 =cut
 
 use autodie;
+use Encode ();
 use Digest::MD5 qw(md5_hex);
 use Email::Address;
 use Pod::Elemental;
@@ -21,6 +22,7 @@ use Pod::Elemental::Transformer::Codebox;
 use Pod::Elemental::Transformer::PPIHTML;
 use Pod::Elemental::Transformer::VimHTML;
 use Pod::Elemental::Transformer::List;
+use Pod::Elemental::Transformer::RSSMode;  # custom, distributed with us
 use Pod::Simple::XHTML 3.13;
 
 use namespace::autoclean;
@@ -100,21 +102,22 @@ has calendar => (
   weak_ref => 1,
 );
 
-=attr body_html
+=attr body_as_elemental
 
-This is the body represented as HTML.  It is generated as required by a private
-builder method.
+This is the body represented as a munged Pod::Elemental node (i.e. with the
+shortcuts suitable for passing into a standard pod reader).  It is generated as
+required by a private builder method.
 
 =cut
 
-has body_html => (
+has _body_renderable_pod => (
   is   => 'ro',
   lazy => 1,
   init_arg => undef,
-  builder  => '_build_body_html',
+  builder  => '_build_body_renderable_pod',
 );
 
-sub _build_body_html {
+sub _build_body_renderable_pod {
   my ($self) = @_;
 
   my $body = $self->body;
@@ -138,6 +141,62 @@ sub _build_body_html {
   $mux->transform_node($document);
 
   $body = $document->as_pod_string;
+}
+
+=attr body_html
+
+This is the body represented as HTML.  It is generated as required by a private
+builder method.
+
+=cut
+
+has body_html => (
+  is   => 'ro',
+  lazy => 1,
+  init_arg => undef,
+  builder  => '_build_body_html',
+);
+
+sub _build_body_html {
+  my ($self) = @_;
+
+  # _build_body_renderable_pod returns a decoded character string that still
+  # carries its "=encoding utf-8" line, so re-encode to octets before handing
+  # it back to read_string -- otherwise non-ASCII bodies die on the reparse.
+  my $renderable = Encode::encode('utf-8', $self->_build_body_renderable_pod);
+  my $pod = Pod::Elemental->read_string( $renderable );
+  Pod::Elemental::Transformer::RSSMode->new( web_mode => 1 )
+      ->transform_node( $pod );
+  return $self->_render_string_to_html( $pod->as_pod_string );
+}
+
+=attr body_html
+
+This is the body represented as HTML for an RSS client.  It is generated as
+required by a private builder method.
+
+=cut
+
+has body_html_for_rss => (
+  is   => 'ro',
+  lazy => 1,
+  init_arg => undef,
+  builder  => '_build_body_html_for_rss',
+);
+
+sub _build_body_html_for_rss {
+  my ($self) = @_;
+
+  # See _build_body_html: re-encode before reparsing so non-ASCII bodies work.
+  my $renderable = Encode::encode('utf-8', $self->_build_body_renderable_pod);
+  my $pod = Pod::Elemental->read_string( $renderable );
+  Pod::Elemental::Transformer::RSSMode->new( web_mode => 0 )
+      ->transform_node( $pod );
+  return $self->_render_string_to_html( $pod->as_pod_string );
+}
+
+sub _render_string_to_html {
+  my ($self, $string) = @_;
 
   my $parser = Pod::Simple::XHTML->new;
   $parser->perldoc_url_prefix('https://metacpan.org/module/');
@@ -146,7 +205,7 @@ sub _build_body_html {
   $parser->html_header('');
   $parser->html_footer('');
 
-  $parser->parse_string_document( Encode::encode('utf-8', $body) );
+  $parser->parse_string_document( Encode::encode('utf-8', $string) );
 
   $html = "<div class='pod'>$html</div>";
 
@@ -155,6 +214,9 @@ sub _build_body_html {
     (<table\sclass='code-listing'>.+?
     \s*</table>)\s*(?:<!--\shack\s-->)?\s*(</pre>)\s*
   }{my $str = $2; $str =~ s/\G^\s\s[^\$]*$//gm; $str}gesmx;
+
+  # eat all html errors (horrible)
+  $html =~ s{<h2 id="POD-ERRORS">POD ERRORS.*?</dl>}{}gsm;
 
   return $html;
 }
