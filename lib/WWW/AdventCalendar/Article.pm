@@ -12,6 +12,7 @@ the production of an HTML version of the article's body.
 =cut
 
 use autodie;
+use Encode ();
 use Digest::MD5 qw(md5_hex);
 use Email::Address;
 use Pod::Elemental;
@@ -159,7 +160,11 @@ has body_html => (
 sub _build_body_html {
   my ($self) = @_;
 
-  my $pod = Pod::Elemental->read_string( $self->_build_body_renderable_pod );
+  # _build_body_renderable_pod returns a decoded character string that still
+  # carries its "=encoding utf-8" line, so re-encode to octets before handing
+  # it back to read_string -- otherwise non-ASCII bodies die on the reparse.
+  my $renderable = Encode::encode('utf-8', $self->_build_body_renderable_pod);
+  my $pod = Pod::Elemental->read_string( $renderable );
   Pod::Elemental::Transformer::RSSMode->new( web_mode => 1 )
       ->transform_node( $pod );
   return $self->_render_string_to_html( $pod->as_pod_string );
@@ -182,7 +187,9 @@ has body_html_for_rss => (
 sub _build_body_html_for_rss {
   my ($self) = @_;
 
-  my $pod = Pod::Elemental->read_string( $self->_build_body_renderable_pod );
+  # See _build_body_html: re-encode before reparsing so non-ASCII bodies work.
+  my $renderable = Encode::encode('utf-8', $self->_build_body_renderable_pod);
+  my $pod = Pod::Elemental->read_string( $renderable );
   Pod::Elemental::Transformer::RSSMode->new( web_mode => 0 )
       ->transform_node( $pod );
   return $self->_render_string_to_html( $pod->as_pod_string );
