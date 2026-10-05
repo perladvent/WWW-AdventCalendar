@@ -21,7 +21,7 @@ body {
   -webkit-border-radius: 10px;
 }
 
-h1 {
+h1, #header .brand {
   margin-top: 10px;
   margin-bottom: 10px;
   font-weight: bold;
@@ -30,7 +30,7 @@ h1 {
   color: <% $color{headerFG} %>;
 }
 
-#header h1 a {
+#header .brand a {
   color: <% $color{titleFG} %>;
 }
 
