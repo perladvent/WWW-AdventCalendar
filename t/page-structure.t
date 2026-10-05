@@ -83,4 +83,15 @@ for my $name (sort keys %page) {
   };
 }
 
+subtest 'stylesheet' => sub {
+  # Supply a value for every colour the stylesheet asks for.
+  my $src   = do { local (@ARGV, $/) = 'share/templates/style.css'; <> };
+  my %color = map {; $_ => '#000' } $src =~ /\$color\{(\w+)\}/g;
+
+  my $css = $calendar->_masonize('/style.css', { color => \%color });
+
+  like $css, qr/^h1, #header \.brand \{/m, 'brand styled like an <h1>';
+  like $css, qr/^#header \.brand a \{/m, 'brand link colour targets .brand';
+};
+
 done_testing;

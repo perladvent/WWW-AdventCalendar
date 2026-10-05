@@ -21,6 +21,8 @@ body {
   -webkit-border-radius: 10px;
 }
 
+/* The header brand is an <h1> on index pages but a <div> on article pages,
+   where the article title is the <h1>, so style it the same either way. */
 h1, #header .brand {
   margin-top: 10px;
   margin-bottom: 10px;
